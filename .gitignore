@@ -1,0 +1,12 @@
+# macOS System Files
+.DS_Store
+
+# Swift / Swift Package Manager build artifacts
+.build/
+.swiftpm/
+Packages/
+Package.pins
+Package.resolved
+
+# Local application build product
+BreakPlane.app/
