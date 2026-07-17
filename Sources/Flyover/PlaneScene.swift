@@ -10,7 +10,12 @@ struct PlaneScene {
     let vehicle: Vehicle
     
     var duration: TimeInterval {
-        return vehicle == .rocket ? 12.0 : 30.0
+        switch vehicle {
+        case .rocket: return 12.0
+        case .hotAirBalloon: return 45.0
+        case .witch: return 25.0
+        default: return 30.0
+        }
     }
 
     /// Overall on-screen size of the plane + banner. Smaller = less intrusive.
@@ -104,6 +109,12 @@ struct PlaneScene {
             return buildUFO()
         case .rocket:
             return buildRocket()
+        case .hotAirBalloon:
+            return buildHotAirBalloon()
+        case .witch:
+            return buildWitch()
+        case .santa:
+            return buildSantaSleigh()
         }
     }
 
@@ -355,6 +366,316 @@ struct PlaneScene {
         return plasma
     }
 
+    private func buildHotAirBalloon() -> SCNNode {
+        let balloonNode = SCNNode()
+        
+        let envColor = NSColor(calibratedRed: 0.9, green: 0.3, blue: 0.1, alpha: 1.0)
+        let envMat = metal(envColor, metalness: 0.1, roughness: 0.5)
+        
+        // Balloon envelope (elongated sphere)
+        let envelope = SCNSphere(radius: 1.5)
+        envelope.materials = [envMat]
+        let envelopeNode = SCNNode(geometry: envelope)
+        envelopeNode.scale = SCNVector3(1.0, 1.35, 1.0)
+        envelopeNode.position = SCNVector3(0, 1.1, 0)
+        balloonNode.addChildNode(envelopeNode)
+        
+        // Basket (brown box)
+        let basketGeo = SCNBox(width: 0.65, height: 0.5, length: 0.65, chamferRadius: 0.06)
+        let basketMat = metal(NSColor(calibratedRed: 0.5, green: 0.35, blue: 0.2, alpha: 1.0), metalness: 0.0, roughness: 0.8)
+        basketGeo.materials = [basketMat]
+        let basketNode = SCNNode(geometry: basketGeo)
+        basketNode.position = SCNVector3(0, -1.0, 0)
+        balloonNode.addChildNode(basketNode)
+        
+        // Ropes (4 thin cylinders linking basket to envelope)
+        let ropeMat = metal(NSColor(calibratedWhite: 0.2, alpha: 1.0), metalness: 0.0, roughness: 0.9)
+        let ropeOffsets: [(Float, Float)] = [(-0.25, -0.25), (-0.25, 0.25), (0.25, -0.25), (0.25, 0.25)]
+        for offset in ropeOffsets {
+            let rope = SCNCylinder(radius: 0.015, height: 1.0)
+            rope.materials = [ropeMat]
+            let rn = SCNNode(geometry: rope)
+            rn.position = SCNVector3(offset.0, -0.25, offset.1)
+            balloonNode.addChildNode(rn)
+        }
+        
+        // Burner fire (pulsing action)
+        let burnerNode = SCNNode()
+        burnerNode.position = SCNVector3(0, -0.5, 0)
+        let burner = buildBalloonBurner()
+        burnerNode.addParticleSystem(burner)
+        
+        let pulse = SCNAction.repeatForever(.sequence([
+            .run { node in (node.particleSystems?.first)?.birthRate = 90 },
+            .wait(duration: 1.2),
+            .run { node in (node.particleSystems?.first)?.birthRate = 0 },
+            .wait(duration: 3.5)
+        ]))
+        burnerNode.runAction(pulse)
+        balloonNode.addChildNode(burnerNode)
+        
+        return balloonNode
+    }
+
+    private func buildBalloonBurner() -> SCNParticleSystem {
+        let burner = SCNParticleSystem()
+        burner.emitterShape = nil
+        burner.birthRate = 0
+        burner.particleLifeSpan = 0.35
+        burner.particleLifeSpanVariation = 0.1
+        burner.particleVelocity = 2.8
+        burner.particleVelocityVariation = 0.5
+        burner.emittingDirection = SCNVector3(0, 1, 0)
+        burner.spreadingAngle = 6
+        burner.particleSize = 0.18
+        burner.particleSizeVariation = 0.05
+        burner.particleColor = NSColor.orange
+        burner.blendMode = .additive
+        burner.isLightingEnabled = false
+        burner.isAffectedByGravity = false
+        burner.particleImage = Self.puffImage()
+        
+        let shrink = CABasicAnimation()
+        shrink.fromValue = 0.18
+        shrink.toValue = 0.03
+        burner.propertyControllers = [.size: SCNParticlePropertyController(animation: shrink)]
+        
+        let colorShift = CAKeyframeAnimation()
+        colorShift.values = [
+            NSColor.white.cgColor,
+            NSColor.yellow.cgColor,
+            NSColor.orange.cgColor,
+            NSColor.red.cgColor
+        ]
+        colorShift.keyTimes = [0.0, 0.2, 0.6, 1.0]
+        burner.propertyControllers?[.color] = SCNParticlePropertyController(animation: colorShift)
+        
+        return burner
+    }
+
+    private func buildWitch() -> SCNNode {
+        let witchNode = SCNNode()
+        
+        let woodMat = metal(NSColor(calibratedRed: 0.4, green: 0.25, blue: 0.12, alpha: 1.0), metalness: 0.0, roughness: 0.8)
+        let strawMat = metal(NSColor(calibratedRed: 0.85, green: 0.72, blue: 0.3, alpha: 1.0), metalness: 0.0, roughness: 0.9)
+        let darkMat = metal(NSColor(calibratedRed: 0.12, green: 0.08, blue: 0.2, alpha: 1.0), metalness: 0.1, roughness: 0.6)
+        let skinMat = metal(NSColor(calibratedRed: 0.4, green: 0.75, blue: 0.45, alpha: 1.0), metalness: 0.0, roughness: 0.7)
+        
+        // Broomstick handle
+        let handle = SCNCylinder(radius: 0.06, height: 3.2)
+        handle.materials = [woodMat]
+        let handleNode = SCNNode(geometry: handle)
+        handleNode.eulerAngles = SCNVector3(0, 0, Float.pi / 2)
+        witchNode.addChildNode(handleNode)
+        
+        // Broom bristles
+        let brush = SCNCone(topRadius: 0.06, bottomRadius: 0.3, height: 0.8)
+        brush.materials = [strawMat]
+        let brushNode = SCNNode(geometry: brush)
+        brushNode.eulerAngles = SCNVector3(0, 0, Float.pi / 2)
+        brushNode.position = SCNVector3(-1.3, 0, 0)
+        witchNode.addChildNode(brushNode)
+        
+        // Witch body/cape
+        let cape = SCNCone(topRadius: 0.04, bottomRadius: 0.32, height: 0.8)
+        cape.materials = [darkMat]
+        let capeNode = SCNNode(geometry: cape)
+        capeNode.position = SCNVector3(0, 0.35, 0)
+        witchNode.addChildNode(capeNode)
+        
+        // Witch head
+        let head = SCNSphere(radius: 0.18)
+        head.materials = [skinMat]
+        let headNode = SCNNode(geometry: head)
+        headNode.position = SCNVector3(0, 0.82, 0)
+        witchNode.addChildNode(headNode)
+        
+        // Witch hat brim
+        let brim = SCNCylinder(radius: 0.45, height: 0.02)
+        brim.materials = [darkMat]
+        let brimNode = SCNNode(geometry: brim)
+        brimNode.position = SCNVector3(0, 0.95, 0)
+        witchNode.addChildNode(brimNode)
+        
+        // Witch hat cone
+        let hatCone = SCNCone(topRadius: 0, bottomRadius: 0.18, height: 0.6)
+        hatCone.materials = [darkMat]
+        let hatConeNode = SCNNode(geometry: hatCone)
+        hatConeNode.position = SCNVector3(-0.06, 1.22, 0)
+        hatConeNode.eulerAngles = SCNVector3(0, 0, Float.pi / 16)
+        witchNode.addChildNode(hatConeNode)
+        
+        // Spooky sparks trail
+        let sparksNode = SCNNode()
+        sparksNode.position = SCNVector3(-1.6, 0, 0)
+        sparksNode.addParticleSystem(buildSpookySparks())
+        witchNode.addChildNode(sparksNode)
+        
+        return witchNode
+    }
+
+    private func buildSpookySparks() -> SCNParticleSystem {
+        let sparks = SCNParticleSystem()
+        sparks.emitterShape = nil
+        sparks.birthRate = 45
+        sparks.particleLifeSpan = 1.6
+        sparks.particleLifeSpanVariation = 0.4
+        sparks.particleVelocity = 0.5
+        sparks.particleVelocityVariation = 0.2
+        sparks.emittingDirection = SCNVector3(-1, 0, 0)
+        sparks.spreadingAngle = 8
+        sparks.particleSize = 0.12
+        sparks.particleSizeVariation = 0.05
+        sparks.particleColor = NSColor(calibratedRed: 0.7, green: 0.1, blue: 0.9, alpha: 0.75)
+        sparks.blendMode = .screen
+        sparks.isLightingEnabled = false
+        sparks.isAffectedByGravity = false
+        sparks.particleImage = Self.puffImage()
+        
+        let shrink = CABasicAnimation()
+        shrink.fromValue = 0.12
+        shrink.toValue = 0.01
+        sparks.propertyControllers = [.size: SCNParticlePropertyController(animation: shrink)]
+        
+        let colorShift = CAKeyframeAnimation()
+        colorShift.values = [
+            NSColor.magenta.cgColor,
+            NSColor.purple.cgColor,
+            NSColor(calibratedRed: 0.18, green: 0.0, blue: 0.35, alpha: 0.0).cgColor
+        ]
+        colorShift.keyTimes = [0.0, 0.5, 1.0]
+        sparks.propertyControllers?[.color] = SCNParticlePropertyController(animation: colorShift)
+        
+        return sparks
+    }
+
+    private func buildSantaSleigh() -> SCNNode {
+        let santaNode = SCNNode()
+        
+        let redMat = metal(NSColor(calibratedRed: 0.8, green: 0.1, blue: 0.1, alpha: 1.0), metalness: 0.3, roughness: 0.4)
+        let goldMat = metal(NSColor(calibratedRed: 0.9, green: 0.75, blue: 0.15, alpha: 1.0), metalness: 0.9, roughness: 0.2)
+        
+        // Sleigh tub
+        let tubGeo = SCNBox(width: 1.6, height: 0.6, length: 1.0, chamferRadius: 0.08)
+        tubGeo.materials = [redMat]
+        let tubNode = SCNNode(geometry: tubGeo)
+        santaNode.addChildNode(tubNode)
+        
+        // Runners
+        let runnerOffsets: [Float] = [-0.45, 0.45]
+        for offset in runnerOffsets {
+            let runner = SCNCylinder(radius: 0.035, height: 1.9)
+            runner.materials = [goldMat]
+            let rn = SCNNode(geometry: runner)
+            rn.eulerAngles = SCNVector3(0, 0, Float.pi / 2)
+            rn.position = SCNVector3(0, -0.38, offset)
+            santaNode.addChildNode(rn)
+            
+            let tip = SCNCone(topRadius: 0.035, bottomRadius: 0.035, height: 0.4)
+            tip.materials = [goldMat]
+            let tn = SCNNode(geometry: tip)
+            tn.position = SCNVector3(0.9, -0.22, offset)
+            tn.eulerAngles = SCNVector3(0, 0, Float.pi / 4)
+            santaNode.addChildNode(tn)
+        }
+        
+        // Presents
+        let presentColors: [NSColor] = [.green, .blue, .yellow]
+        let presentOffsets: [SCNVector3] = [
+            SCNVector3(0.1, 0.25, 0.18),
+            SCNVector3(-0.25, 0.25, -0.15),
+            SCNVector3(0.3, 0.25, -0.1)
+        ]
+        for i in 0..<3 {
+            let box = SCNBox(width: 0.35, height: 0.35, length: 0.35, chamferRadius: 0.02)
+            box.materials = [metal(presentColors[i], metalness: 0.1, roughness: 0.6)]
+            let bn = SCNNode(geometry: box)
+            bn.position = presentOffsets[i]
+            santaNode.addChildNode(bn)
+        }
+        
+        // Reindeer
+        let deerNode = SCNNode()
+        let brownMat = metal(NSColor(calibratedRed: 0.45, green: 0.3, blue: 0.15, alpha: 1.0), metalness: 0.0, roughness: 0.8)
+        
+        let deerBody = SCNBox(width: 0.75, height: 0.38, length: 0.24, chamferRadius: 0.04)
+        deerBody.materials = [brownMat]
+        let dbNode = SCNNode(geometry: deerBody)
+        dbNode.position = SCNVector3(2.2, 0.05, 0)
+        deerNode.addChildNode(dbNode)
+        
+        let deerHead = SCNBox(width: 0.25, height: 0.45, length: 0.18, chamferRadius: 0.04)
+        deerHead.materials = [brownMat]
+        let dhNode = SCNNode(geometry: deerHead)
+        dhNode.position = SCNVector3(2.55, 0.38, 0)
+        deerNode.addChildNode(dhNode)
+        
+        // Antlers
+        let antlerMat = metal(NSColor(calibratedRed: 0.9, green: 0.75, blue: 0.15, alpha: 1.0), metalness: 0.4, roughness: 0.4)
+        let antOffsets: [Float] = [-0.08, 0.08]
+        for offset in antOffsets {
+            let antler = SCNBox(width: 0.04, height: 0.25, length: 0.12, chamferRadius: 0.01)
+            antler.materials = [antlerMat]
+            let an = SCNNode(geometry: antler)
+            an.position = SCNVector3(2.55, 0.62, offset)
+            an.eulerAngles = SCNVector3(0, 0, -Float.pi / 6)
+            deerNode.addChildNode(an)
+        }
+        
+        // Reins
+        let reinsMat = metal(NSColor(calibratedRed: 0.9, green: 0.75, blue: 0.15, alpha: 1.0), metalness: 0.9, roughness: 0.2)
+        let reinsOffsets: [Float] = [-0.3, 0.3]
+        for offset in reinsOffsets {
+            let rein = SCNCylinder(radius: 0.01, height: 1.45)
+            rein.materials = [reinsMat]
+            let rn = SCNNode(geometry: rein)
+            rn.position = SCNVector3(1.3, 0.16, offset * 0.4)
+            rn.eulerAngles = SCNVector3(0, offset * 0.18, Float.pi / 2 - 0.1)
+            deerNode.addChildNode(rn)
+        }
+        
+        santaNode.addChildNode(deerNode)
+        
+        // Snowy sparkles trail
+        let snowNode = SCNNode()
+        snowNode.position = SCNVector3(-0.9, 0, 0)
+        snowNode.addParticleSystem(buildSnowDust())
+        santaNode.addChildNode(snowNode)
+        
+        return santaNode
+    }
+
+    private func buildSnowDust() -> SCNParticleSystem {
+        let snow = SCNParticleSystem()
+        snow.emitterShape = nil
+        snow.birthRate = 42
+        snow.particleLifeSpan = 1.8
+        snow.particleLifeSpanVariation = 0.5
+        snow.particleVelocity = 0.4
+        snow.particleVelocityVariation = 0.15
+        snow.emittingDirection = SCNVector3(-1, 0, 0)
+        snow.spreadingAngle = 6
+        snow.particleSize = 0.15
+        snow.particleSizeVariation = 0.06
+        snow.particleColor = NSColor.white
+        snow.blendMode = .screen
+        snow.isLightingEnabled = false
+        snow.isAffectedByGravity = false
+        snow.particleImage = Self.puffImage()
+        
+        let shrink = CABasicAnimation()
+        shrink.fromValue = 0.15
+        shrink.toValue = 0.02
+        snow.propertyControllers = [.size: SCNParticlePropertyController(animation: shrink)]
+        
+        let fade = CAKeyframeAnimation()
+        fade.values = [0.0, 0.85, 0.0]
+        fade.keyTimes = [0.0, 0.15, 1.0]
+        snow.propertyControllers = [.opacity: SCNParticlePropertyController(animation: fade)]
+        
+        return snow
+    }
+
     /// A soft white smoke plume that streams from the tail. Particles are born in the
     /// scene's coordinate space, so they hang in the air and trail behind the plane.
     private func buildSmoke() -> SCNParticleSystem {
@@ -454,11 +775,25 @@ struct PlaneScene {
         // Build one single-sided face; the text reads correctly only from its +Z side.
         func makeFace() -> SCNNode {
             let plane = SCNPlane(width: width, height: height)
+            plane.widthSegmentCount = 20
+            plane.heightSegmentCount = 4
+            
             let mat = SCNMaterial()
             mat.diffuse.contents = image
             mat.isDoubleSided = false            // no mirrored back face
             mat.lightingModel = .constant        // stays legible regardless of lighting
             mat.transparencyMode = .aOne         // use the image's real alpha channel
+            
+            let shader = """
+            uniform float bannerWidth;
+            #pragma body
+            float factor = clamp(0.5 - (_geometry.position.x / bannerWidth), 0.0, 1.0);
+            float wave = sin(_geometry.position.x * 2.2 - u_time * 7.0) * 0.16 * factor;
+            _geometry.position.z += wave;
+            """
+            mat.shaderModifiers = [.geometry: shader]
+            mat.setValue(Float(width), forKey: "bannerWidth")
+            
             plane.materials = [mat]
             return SCNNode(geometry: plane)
         }
@@ -713,12 +1048,54 @@ struct PlaneScene {
                 let v = pNext - pPrev
                 let baseYaw = atan2f(-v.z, v.x)
                 
-                // Keep the flight rig oriented towards heading so the banner trails stably
                 node.simdOrientation = simd_quatf(angle: baseYaw, axis: up)
-                
-                // Spin only the UFO body disc
                 let spin = Float(elapsed) * 4.5
                 body.simdOrientation = simd_quatf(angle: spin, axis: up)
+                
+            } else if vehicle == .hotAirBalloon {
+                let s = t * Float(laps) * 2 * .pi
+                var p = path(s)
+                p.z = depthMid + depthAmp * cosf(s) * 0.4
+                node.simdPosition = p
+                
+                let ds: Float = 0.02
+                let pPrev = path(s - ds), pNext = path(s + ds)
+                let v = pNext - pPrev
+                let yaw = atan2f(-v.z, v.x)
+                
+                let swayRoll = sinf(Float(elapsed) * 1.2) * 0.06
+                let swayPitch = cosf(Float(elapsed) * 0.8) * 0.04
+                
+                let qYaw = simd_quatf(angle: yaw, axis: up)
+                let qSway = simd_quatf(angle: swayRoll, axis: noseAxis) *
+                            simd_quatf(angle: swayPitch, axis: wingAxis)
+                node.simdOrientation = qYaw * qSway
+                body.simdOrientation = simd_quatf(angle: 0, axis: up)
+                
+            } else if vehicle == .witch {
+                let s = t * Float(laps) * 2 * .pi
+                var p = path(s)
+                let swoopFreq = s * 4.0
+                p.y += sinf(swoopFreq) * 1.5
+                node.simdPosition = p
+                
+                let ds: Float = 0.02
+                let pPrev = path(s - ds), pNext = path(s + ds)
+                var pPrevSwooped = pPrev
+                pPrevSwooped.y += sinf((s - ds) * 4.0) * 1.5
+                var pNextSwooped = pNext
+                pNextSwooped.y += sinf((s + ds) * 4.0) * 1.5
+                
+                let v = (pNextSwooped - pPrevSwooped) / (2 * ds)
+                let hSpeed = max(1e-4, sqrtf(v.x * v.x + v.z * v.z))
+                
+                let yaw = atan2f(-v.z, v.x)
+                let pitch = max(-0.6, min(0.6, atan2f(v.y, hSpeed) * 1.3))
+                
+                let qYaw = simd_quatf(angle: yaw, axis: up)
+                let qPitch = simd_quatf(angle: pitch, axis: qYaw.act(wingAxis))
+                node.simdOrientation = qPitch * qYaw
+                body.simdOrientation = simd_quatf(angle: 0, axis: up)
                 
             } else {
                 let s = t * Float(laps) * 2 * .pi

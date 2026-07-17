@@ -8,6 +8,9 @@ enum Vehicle: String, CaseIterable, Codable {
     case paperAirplane = "paper"
     case ufo = "ufo"
     case rocket = "rocket"
+    case hotAirBalloon = "balloon"
+    case witch = "witch"
+    case santa = "santa"
 
     var displayName: String {
         switch self {
@@ -15,6 +18,9 @@ enum Vehicle: String, CaseIterable, Codable {
         case .paperAirplane: return "Paper Airplane"
         case .ufo: return "UFO"
         case .rocket: return "Retro Rocket"
+        case .hotAirBalloon: return "Hot Air Balloon"
+        case .witch: return "Witch"
+        case .santa: return "Santa's Sleigh"
         }
     }
 }
