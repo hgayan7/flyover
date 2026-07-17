@@ -20,6 +20,12 @@
 
 *When a reminder is triggered, a transparent, click-through overlay window is created, showing the 3D plane crossing the screen. You can continue clicking on underlying windows without interruption.*
 
+
+
+https://github.com/user-attachments/assets/739d8366-3efa-42ba-922e-0aed8f51fa15
+
+
+
 ---
 
 ## Requirements
