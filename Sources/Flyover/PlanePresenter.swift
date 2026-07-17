@@ -8,11 +8,11 @@ final class PlanePresenter {
     private var fallback: Timer?
 
     /// Fly a plane across the screen with the given banner text. No-op if one is already flying.
-    func fly(message: String) {
+    func fly(message: String, vehicle: Vehicle) {
         guard window == nil else { return }
         guard let screen = NSScreen.main else { return }
         let frame = screen.frame
-
+ 
         let win = NSWindow(contentRect: frame, styleMask: .borderless,
                            backing: .buffered, defer: false)
         win.isOpaque = false
@@ -23,15 +23,15 @@ final class PlanePresenter {
         win.collectionBehavior = [.canJoinAllSpaces, .stationary,
                                   .fullScreenAuxiliary, .ignoresCycle]
         win.isReleasedWhenClosed = false
-
+ 
         let sceneView = SCNView(frame: NSRect(origin: .zero, size: frame.size))
         sceneView.backgroundColor = .clear
         sceneView.autoenablesDefaultLighting = false
         sceneView.antialiasingMode = .multisampling4X
         sceneView.rendersContinuously = true
         sceneView.preferredFramesPerSecond = 60
-
-        let builder = PlaneScene(aspect: frame.width / max(frame.height, 1))
+ 
+        let builder = PlaneScene(aspect: frame.width / max(frame.height, 1), vehicle: vehicle)
         sceneView.scene = builder.makeScene(message: message) { [weak self] in
             self?.dismiss()
         }

@@ -92,6 +92,22 @@ struct PopoverView: View {
             if settings.fixedIntervalEnabled {
                 minutesStepper(value: $settings.fixedIntervalSeconds, range: 10...180, step: 5)
             }
+
+            Divider().padding(.vertical, 2)
+
+            HStack {
+                Text("Vehicle")
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Picker("", selection: $settings.selectedVehicle) {
+                    ForEach(Vehicle.allCases, id: \.self) { vehicle in
+                        Text(vehicle.displayName).tag(vehicle)
+                    }
+                }
+                .pickerStyle(.menu)
+                .labelsHidden()
+            }
         }
         .disabled(!settings.remindersEnabled)
         .opacity(settings.remindersEnabled ? 1 : 0.5)

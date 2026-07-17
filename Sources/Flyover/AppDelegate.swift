@@ -19,7 +19,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         tracker = ActivityTracker(stats: stats)
 
         scheduler.onFire = { [weak self] message in
-            self?.presenter.fly(message: message)
+            guard let self = self else { return }
+            self.presenter.fly(message: message, vehicle: self.settings.selectedVehicle)
         }
         tracker.onTick = { [weak self] in
             self?.scheduler.tick()
@@ -31,7 +32,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Show a plane on launch so you can see it works right away.
         if ProcessInfo.processInfo.environment["FLYOVER_TESTFLY"] != nil {
-            presenter.fly(message: "Time to take a break! ✈️")
+            presenter.fly(message: "Time to take a break! ✈️", vehicle: settings.selectedVehicle)
         }
     }
 

@@ -3,6 +3,22 @@ import Combine
 
 // MARK: - Settings (persisted, user-configurable)
 
+enum Vehicle: String, CaseIterable, Codable {
+    case propellerPlane = "propeller"
+    case paperAirplane = "paper"
+    case ufo = "ufo"
+    case rocket = "rocket"
+
+    var displayName: String {
+        switch self {
+        case .propellerPlane: return "Propeller Plane"
+        case .paperAirplane: return "Paper Airplane"
+        case .ufo: return "UFO"
+        case .rocket: return "Retro Rocket"
+        }
+    }
+}
+
 /// User-configurable reminder settings. Modes are independent toggles that can be
 /// combined — whichever enabled mode becomes due first flies the plane.
 @MainActor
@@ -17,6 +33,9 @@ final class SettingsStore: ObservableObject {
     @Published var fixedIntervalEnabled: Bool { didSet { save() } }
     @Published var fixedIntervalSeconds: Int { didSet { save() } }
 
+    /// The selected vehicle type to render.
+    @Published var selectedVehicle: Vehicle { didSet { save() } }
+
     private let key = "Flyover.settings.v1"
 
     private struct Snapshot: Codable {
@@ -25,6 +44,7 @@ final class SettingsStore: ObservableObject {
         var activeStreakSeconds: Int
         var fixedIntervalEnabled: Bool
         var fixedIntervalSeconds: Int
+        var selectedVehicle: Vehicle?
     }
 
     init() {
@@ -34,7 +54,8 @@ final class SettingsStore: ObservableObject {
             activeStreakEnabled: true,
             activeStreakSeconds: 50 * 60,
             fixedIntervalEnabled: false,
-            fixedIntervalSeconds: 60 * 60
+            fixedIntervalSeconds: 60 * 60,
+            selectedVehicle: .propellerPlane
         )
         if let data = UserDefaults.standard.data(forKey: key),
            let decoded = try? JSONDecoder().decode(Snapshot.self, from: data) {
@@ -45,6 +66,7 @@ final class SettingsStore: ObservableObject {
         activeStreakSeconds = snap.activeStreakSeconds
         fixedIntervalEnabled = snap.fixedIntervalEnabled
         fixedIntervalSeconds = snap.fixedIntervalSeconds
+        selectedVehicle = snap.selectedVehicle ?? .propellerPlane
     }
 
     private func save() {
@@ -53,7 +75,8 @@ final class SettingsStore: ObservableObject {
             activeStreakEnabled: activeStreakEnabled,
             activeStreakSeconds: activeStreakSeconds,
             fixedIntervalEnabled: fixedIntervalEnabled,
-            fixedIntervalSeconds: fixedIntervalSeconds
+            fixedIntervalSeconds: fixedIntervalSeconds,
+            selectedVehicle: selectedVehicle
         )
         if let data = try? JSONEncoder().encode(snap) {
             UserDefaults.standard.set(data, forKey: key)

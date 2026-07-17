@@ -1,5 +1,5 @@
 import AppKit
-import SceneKit
+@preconcurrency import SceneKit
 import simd
 
 /// Builds a lit, shaded 3D propeller plane (procedural geometry, no external assets)
@@ -7,8 +7,11 @@ import simd
 @MainActor
 struct PlaneScene {
     let aspect: CGFloat
-    /// How long the fly-through lasts, in seconds.
-    let duration: TimeInterval = 30.0
+    let vehicle: Vehicle
+    
+    var duration: TimeInterval {
+        return vehicle == .rocket ? 12.0 : 30.0
+    }
 
     /// Overall on-screen size of the plane + banner. Smaller = less intrusive.
     private let flightScale: Float = 0.5
@@ -24,7 +27,7 @@ struct PlaneScene {
         let flight = SCNNode()
         scene.rootNode.addChildNode(flight)
 
-        let body = buildPlaneBody()
+        let body = buildVehicleBody()
         flight.addChildNode(body)
 
         let (banner, ropeAnchor) = buildBanner(message: message)
@@ -91,7 +94,20 @@ struct PlaneScene {
 
     // MARK: - Plane geometry (nose points toward +X, wings span Z)
 
-    private func buildPlaneBody() -> SCNNode {
+    private func buildVehicleBody() -> SCNNode {
+        switch vehicle {
+        case .propellerPlane:
+            return buildPropellerPlane()
+        case .paperAirplane:
+            return buildPaperAirplane()
+        case .ufo:
+            return buildUFO()
+        case .rocket:
+            return buildRocket()
+        }
+    }
+
+    private func buildPropellerPlane() -> SCNNode {
         let body = SCNNode()
 
         let fuselageColor = NSColor(calibratedRed: 0.92, green: 0.93, blue: 0.96, alpha: 1)
@@ -156,6 +172,187 @@ struct PlaneScene {
         body.addChildNode(smokeNode)
 
         return body
+    }
+
+    private func buildPaperAirplane() -> SCNNode {
+        let body = SCNNode()
+
+        // Vertices for a paper plane (facing +X)
+        let vertices: [SCNVector3] = [
+            SCNVector3(2.0, 0.0, 0.0),       // 0: Nose
+            SCNVector3(-2.2, 0.2, 0.0),      // 1: Tail center fold top
+            SCNVector3(-2.2, -0.6, 0.0),     // 2: Tail center fold bottom
+            SCNVector3(-2.2, 0.5, -1.8),     // 3: Left wingtip
+            SCNVector3(-2.2, 0.5, 1.8)       // 4: Right wingtip
+        ]
+
+        let indices: [Int32] = [
+            0, 2, 1, // Keel left
+            0, 1, 2, // Keel right
+            0, 1, 3, // Left wing
+            0, 4, 1  // Right wing
+        ]
+
+        let source = SCNGeometrySource(vertices: vertices)
+        let element = SCNGeometryElement(indices: indices, primitiveType: .triangles)
+        let geo = SCNGeometry(sources: [source], elements: [element])
+
+        let paperMat = SCNMaterial()
+        paperMat.lightingModel = .physicallyBased
+        paperMat.diffuse.contents = NSColor(calibratedWhite: 0.96, alpha: 1.0)
+        paperMat.roughness.contents = 0.8
+        paperMat.metalness.contents = 0.0
+        paperMat.isDoubleSided = true
+        geo.materials = [paperMat]
+
+        let airplaneNode = SCNNode(geometry: geo)
+        body.addChildNode(airplaneNode)
+
+        let trailNode = SCNNode()
+        trailNode.position = SCNVector3(-2.2, 0.1, 0)
+        trailNode.addParticleSystem(buildStardust())
+        body.addChildNode(trailNode)
+
+        return body
+    }
+
+    private func buildStardust() -> SCNParticleSystem {
+        let stars = SCNParticleSystem()
+        stars.emitterShape = nil
+        stars.birthRate = 25
+        stars.particleLifeSpan = 1.5
+        stars.particleLifeSpanVariation = 0.4
+        stars.particleVelocity = 0.3
+        stars.particleVelocityVariation = 0.1
+        stars.emittingDirection = SCNVector3(-1, 0, 0)
+        stars.spreadingAngle = 5
+        stars.particleSize = 0.08
+        stars.particleSizeVariation = 0.04
+        stars.particleColor = NSColor(calibratedRed: 0.98, green: 0.9, blue: 0.5, alpha: 0.75)
+        stars.blendMode = .screen
+        stars.isLightingEnabled = false
+        stars.isAffectedByGravity = false
+        stars.particleImage = Self.puffImage()
+
+        let fade = CAKeyframeAnimation()
+        fade.values = [0.0, 0.8, 0.0]
+        fade.keyTimes = [0.0, 0.15, 1.0]
+        stars.propertyControllers = [.opacity: SCNParticlePropertyController(animation: fade)]
+
+        return stars
+    }
+
+    private func buildUFO() -> SCNNode {
+        let body = SCNNode()
+
+        let metalMat = metal(NSColor(calibratedWhite: 0.72, alpha: 1.0), metalness: 0.9, roughness: 0.2)
+
+        // Main saucer disk (squashed sphere)
+        let disk = SCNSphere(radius: 2.0)
+        disk.materials = [metalMat]
+        let diskNode = SCNNode(geometry: disk)
+        diskNode.scale = SCNVector3(1.0, 0.18, 1.0)
+        body.addChildNode(diskNode)
+
+        // Cockpit dome (glass sphere on top)
+        let dome = SCNSphere(radius: 0.85)
+        let glass = SCNMaterial()
+        glass.lightingModel = .physicallyBased
+        glass.diffuse.contents = NSColor(calibratedRed: 0.1, green: 0.6, blue: 0.8, alpha: 0.7)
+        glass.metalness.contents = 0.9
+        glass.roughness.contents = 0.05
+        glass.transparencyMode = .dualLayer
+        dome.materials = [glass]
+        let domeNode = SCNNode(geometry: dome)
+        domeNode.scale = SCNVector3(1.0, 0.6, 1.0)
+        domeNode.position = SCNVector3(0, 0.22, 0)
+        body.addChildNode(domeNode)
+
+        // Small alien inside
+        let pilot = SCNSphere(radius: 0.22)
+        let alienMat = SCNMaterial()
+        alienMat.diffuse.contents = NSColor.green
+        pilot.materials = [alienMat]
+        let pilotNode = SCNNode(geometry: pilot)
+        pilotNode.position = SCNVector3(0, 0.3, 0)
+        body.addChildNode(pilotNode)
+
+        // Glowing rim lights
+        let lightColors: [NSColor] = [.cyan, .yellow, .magenta, .orange, .green]
+        for i in 0..<8 {
+            let angle = Float(i) * Float.pi / 4.0
+            let r: Float = 1.95
+            let rimLight = SCNSphere(radius: 0.12)
+            let lightMat = SCNMaterial()
+            lightMat.lightingModel = .constant
+            let color = lightColors[i % lightColors.count]
+            lightMat.diffuse.contents = color
+            lightMat.emission.contents = color
+            rimLight.materials = [lightMat]
+
+            let lightNode = SCNNode(geometry: rimLight)
+            lightNode.position = SCNVector3(r * cos(angle), 0, r * sin(angle))
+            body.addChildNode(lightNode)
+
+            // Make them pulse
+            let pulse = SCNAction.sequence([
+                .fadeOpacity(to: 0.2, duration: 0.2),
+                .fadeOpacity(to: 1.0, duration: 0.2)
+            ])
+            let wait = SCNAction.wait(duration: Double(i) * 0.05)
+            lightNode.runAction(.sequence([wait, .repeatForever(pulse)]))
+        }
+
+        // Tractor beam underneath
+        let beam = SCNCone(topRadius: 0.2, bottomRadius: 1.8, height: 5.5)
+        let beamMat = SCNMaterial()
+        beamMat.lightingModel = .constant
+        beamMat.diffuse.contents = NSColor(calibratedRed: 0.0, green: 1.0, blue: 0.4, alpha: 0.2)
+        beamMat.transparencyMode = .aOne
+        beam.materials = [beamMat]
+        let beamNode = SCNNode(geometry: beam)
+        beamNode.position = SCNVector3(0, -2.8, 0)
+        body.addChildNode(beamNode)
+
+        // Exhaust plasma trail
+        let plasmaNode = SCNNode()
+        plasmaNode.position = SCNVector3(-1.9, 0, 0)
+        plasmaNode.addParticleSystem(buildPlasmaTrail())
+        body.addChildNode(plasmaNode)
+
+        return body
+    }
+
+    private func buildPlasmaTrail() -> SCNParticleSystem {
+        let plasma = SCNParticleSystem()
+        plasma.emitterShape = nil
+        plasma.birthRate = 90
+        plasma.particleLifeSpan = 1.2
+        plasma.particleLifeSpanVariation = 0.3
+        plasma.particleVelocity = 0.6
+        plasma.particleVelocityVariation = 0.2
+        plasma.emittingDirection = SCNVector3(-1, 0, 0)
+        plasma.spreadingAngle = 12
+        plasma.particleSize = 0.16
+        plasma.particleSizeVariation = 0.06
+        plasma.particleColor = NSColor(calibratedRed: 0.0, green: 0.8, blue: 1.0, alpha: 0.7)
+        plasma.blendMode = .screen
+        plasma.isLightingEnabled = false
+        plasma.isAffectedByGravity = false
+        plasma.particleImage = Self.puffImage()
+        plasma.particleAngularVelocity = 2.0
+
+        let shrink = CABasicAnimation()
+        shrink.fromValue = 0.16
+        shrink.toValue = 0.02
+        plasma.propertyControllers = [.size: SCNParticlePropertyController(animation: shrink)]
+
+        let fade = CAKeyframeAnimation()
+        fade.values = [0.0, 0.8, 0.0]
+        fade.keyTimes = [0.0, 0.15, 1.0]
+        plasma.propertyControllers?[.opacity] = SCNParticlePropertyController(animation: fade)
+
+        return plasma
     }
 
     /// A soft white smoke plume that streams from the tail. Particles are born in the
@@ -242,7 +439,7 @@ struct PlaneScene {
     /// Returns the banner node (trailing behind, on the −X side) and a thin rope node
     /// linking it to the tail.
     private func buildBanner(message: String) -> (SCNNode, SCNNode) {
-        let (image, imageAspect) = Self.bannerImage(message)
+        let (image, imageAspect) = Self.bannerImage(message, for: vehicle)
         // Keep the banner within a sane on-screen width regardless of message length.
         let maxWidth: CGFloat = 13
         var height: CGFloat = 2.4
@@ -280,12 +477,26 @@ struct PlaneScene {
         let centerX = -(2.6 + gap + width / 2)
         bannerNode.position = SCNVector3(Float(centerX), 0, 0)
 
-        // Rope from tail (~ -2.6) to banner's right edge.
+        // Rope or laser from tail (~ -2.6) to banner's right edge.
         let tailX: CGFloat = -2.6
         let bannerRightX = centerX + width / 2
         let ropeLen = tailX - bannerRightX
         let rope = SCNCylinder(radius: 0.03, height: ropeLen)
-        rope.materials = [metal(NSColor(calibratedWhite: 0.15, alpha: 1), metalness: 0, roughness: 1)]
+        
+        let ropeMat = SCNMaterial()
+        if vehicle == .ufo {
+            ropeMat.lightingModel = .constant
+            let greenColor = NSColor(calibratedRed: 0.0, green: 1.0, blue: 0.4, alpha: 0.95)
+            ropeMat.diffuse.contents = greenColor
+            ropeMat.emission.contents = greenColor
+        } else {
+            ropeMat.lightingModel = .physicallyBased
+            ropeMat.diffuse.contents = NSColor(calibratedWhite: 0.15, alpha: 1)
+            ropeMat.metalness.contents = 0.0
+            ropeMat.roughness.contents = 1.0
+        }
+        rope.materials = [ropeMat]
+        
         let ropeNode = SCNNode(geometry: rope)
         ropeNode.eulerAngles = SCNVector3(0, 0, Float.pi / 2)   // lay along X
         ropeNode.position = SCNVector3(Float(bannerRightX + ropeLen / 2), 0, 0)
@@ -294,11 +505,20 @@ struct PlaneScene {
     }
 
     /// Render the message to an NSImage used as the banner texture. Returns (image, width/height).
-    static func bannerImage(_ text: String) -> (NSImage, CGFloat) {
+    static func bannerImage(_ text: String, for vehicle: Vehicle) -> (NSImage, CGFloat) {
         let font = NSFont.systemFont(ofSize: 72, weight: .heavy)
+        let foregroundColor: NSColor
+        switch vehicle {
+        case .paperAirplane:
+            foregroundColor = NSColor.darkGray
+        case .ufo:
+            foregroundColor = NSColor(calibratedRed: 0.0, green: 1.0, blue: 0.4, alpha: 1.0)
+        default:
+            foregroundColor = NSColor.white
+        }
         let attrs: [NSAttributedString.Key: Any] = [
             .font: font,
-            .foregroundColor: NSColor.white
+            .foregroundColor: foregroundColor
         ]
         let textSize = (text as NSString).size(withAttributes: attrs)
         let padX: CGFloat = 70, padY: CGFloat = 46
@@ -309,79 +529,250 @@ struct PlaneScene {
         img.lockFocus()
         let full = NSRect(x: 0, y: 0, width: w, height: h)
         let banner = NSBezierPath(roundedRect: full.insetBy(dx: 8, dy: 8), xRadius: 28, yRadius: 28)
-        NSColor(calibratedRed: 0.86, green: 0.18, blue: 0.20, alpha: 0.96).setFill()
-        banner.fill()
-        NSColor.white.setStroke()
-        banner.lineWidth = 10
-        banner.stroke()
+        
+        if vehicle == .paperAirplane {
+            NSColor(calibratedWhite: 0.95, alpha: 0.96).setFill()
+            banner.fill()
+            NSColor.darkGray.setStroke()
+            banner.lineWidth = 6
+            banner.stroke()
+        } else if vehicle == .ufo {
+            NSColor(calibratedRed: 0.05, green: 0.15, blue: 0.05, alpha: 0.75).setFill()
+            banner.fill()
+            NSColor(calibratedRed: 0.0, green: 1.0, blue: 0.4, alpha: 0.9).setStroke()
+            banner.lineWidth = 8
+            banner.stroke()
+        } else {
+            NSColor(calibratedRed: 0.86, green: 0.18, blue: 0.20, alpha: 0.96).setFill()
+            banner.fill()
+            NSColor.white.setStroke()
+            banner.lineWidth = 10
+            banner.stroke()
+        }
         (text as NSString).draw(at: NSPoint(x: padX, y: padY), withAttributes: attrs)
         img.unlockFocus()
         return (img, w / h)
     }
 
+    private func buildRocket() -> SCNNode {
+        let rocket = SCNNode()
+        
+        let metalMat = metal(NSColor(calibratedRed: 0.88, green: 0.15, blue: 0.15, alpha: 1.0), metalness: 0.7, roughness: 0.3)
+        let trimMat = metal(NSColor(calibratedWhite: 0.9, alpha: 1.0), metalness: 0.8, roughness: 0.2)
+        
+        let bodyGeo = SCNCylinder(radius: 0.5, height: 3.0)
+        bodyGeo.materials = [trimMat]
+        let bodyNode = SCNNode(geometry: bodyGeo)
+        bodyNode.eulerAngles = SCNVector3(0, 0, Float.pi / 2)
+        rocket.addChildNode(bodyNode)
+        
+        let noseGeo = SCNCone(topRadius: 0, bottomRadius: 0.5, height: 1.2)
+        noseGeo.materials = [metalMat]
+        let noseNode = SCNNode(geometry: noseGeo)
+        noseNode.eulerAngles = SCNVector3(0, 0, -Float.pi / 2)
+        noseNode.position = SCNVector3(2.1, 0, 0)
+        rocket.addChildNode(noseNode)
+        
+        let nozzleGeo = SCNCone(topRadius: 0.5, bottomRadius: 0.3, height: 0.5)
+        nozzleGeo.materials = [metal(NSColor.darkGray, metalness: 0.9, roughness: 0.5)]
+        let nozzleNode = SCNNode(geometry: nozzleGeo)
+        nozzleNode.eulerAngles = SCNVector3(0, 0, -Float.pi / 2)
+        nozzleNode.position = SCNVector3(-1.75, 0, 0)
+        rocket.addChildNode(nozzleNode)
+        
+        for i in 0..<3 {
+            let angle = Float(i) * 2 * Float.pi / 3.0
+            let finGeo = SCNBox(width: 0.8, height: 0.8, length: 0.08, chamferRadius: 0.04)
+            finGeo.materials = [metalMat]
+            let finNode = SCNNode(geometry: finGeo)
+            
+            let r: Float = 0.5
+            finNode.position = SCNVector3(-1.2, r * cos(angle), r * sin(angle))
+            finNode.eulerAngles = SCNVector3(-angle, 0, Float.pi / 4)
+            rocket.addChildNode(finNode)
+        }
+        
+        let fireNode = SCNNode()
+        fireNode.position = SCNVector3(-2.1, 0, 0)
+        fireNode.addParticleSystem(buildRocketFire())
+        rocket.addChildNode(fireNode)
+        
+        return rocket
+    }
+
+    private func buildRocketFire() -> SCNParticleSystem {
+        let fire = SCNParticleSystem()
+        fire.emitterShape = nil
+        fire.birthRate = 120
+        fire.particleLifeSpan = 0.8
+        fire.particleLifeSpanVariation = 0.2
+        fire.particleVelocity = 3.5
+        fire.particleVelocityVariation = 0.8
+        fire.emittingDirection = SCNVector3(-1, 0, 0)
+        fire.spreadingAngle = 8
+        fire.particleSize = 0.35
+        fire.particleSizeVariation = 0.15
+        fire.particleColor = NSColor(calibratedRed: 1.0, green: 0.35, blue: 0.0, alpha: 0.8)
+        fire.blendMode = .additive
+        fire.isLightingEnabled = false
+        fire.isAffectedByGravity = false
+        fire.particleImage = Self.puffImage()
+        
+        let shrink = CABasicAnimation()
+        shrink.fromValue = 0.35
+        shrink.toValue = 0.05
+        fire.propertyControllers = [.size: SCNParticlePropertyController(animation: shrink)]
+        
+        let colorShift = CAKeyframeAnimation()
+        colorShift.values = [
+            NSColor.white.cgColor,
+            NSColor(calibratedRed: 1.0, green: 0.85, blue: 0.0, alpha: 0.9).cgColor,
+            NSColor(calibratedRed: 1.0, green: 0.3, blue: 0.0, alpha: 0.7).cgColor,
+            NSColor(calibratedWhite: 0.2, alpha: 0.0).cgColor
+        ]
+        colorShift.keyTimes = [0.0, 0.2, 0.6, 1.0]
+        fire.propertyControllers?[.color] = SCNParticlePropertyController(animation: colorShift)
+        
+        return fire
+    }
+
     // MARK: - Animation
 
     private func animate(flight: SCNNode, body: SCNNode, completion: @escaping () -> Void) {
-        // Shrink the whole rig so it stays unobtrusive.
         flight.scale = SCNVector3(flightScale, flightScale, flightScale)
-        body.eulerAngles = SCNVector3(0, 0, 0)   // orientation is driven dynamically below
+        body.eulerAngles = SCNVector3(0, 0, 0)
 
-        // Visible half-extents at the flight plane (z = 0), derived from the camera
-        // geometry, so the plane stays fully on screen the whole time.
         let camDistance = 26.0
         let halfH = tan((42.0 / 2) * .pi / 180) * camDistance
         let halfW = halfH * Double(aspect)
 
-        // A smooth, banked circuit in the horizontal plane (X across, Z depth) with a
-        // gentle altitude weave — the plane loops around like a real banner plane.
         let total = duration
         let laps = 2.0
-        let ampX = Float(halfW * 0.34)     // horizontal reach (kept inside the frame)
-        let depthAmp: Float = 5            // how far it swings toward / away from camera
-        let depthMid: Float = -3           // stay behind the z = 0 plane
+        let ampX = Float(halfW * 0.34)
+        let depthAmp: Float = 5
+        let depthMid: Float = -3
         let altMid = Float(halfH * 0.06)
-        let altAmp = Float(halfH * 0.16)   // climb / descend twice per lap
+        let altAmp = Float(halfH * 0.16)
 
-        // Parametric flight path P(s), s = arc phase in radians.
         let path: (Float) -> SIMD3<Float> = { s in
             SIMD3(ampX * sinf(s),
                   altMid + altAmp * sinf(2 * s),
                   depthMid + depthAmp * cosf(s))
         }
 
-        // Physics-flavoured orientation: nose along velocity, pitch into climb/dive,
-        // bank into turns. Derived per frame from finite differences of the path.
-        let bankGain: Float = 1.6, maxBank: Float = 0.65
-        let pitchGain: Float = 1.1, maxPitch: Float = 0.5
         let up = SIMD3<Float>(0, 1, 0)
         let noseAxis = SIMD3<Float>(1, 0, 0)
         let wingAxis = SIMD3<Float>(0, 0, 1)
 
         let fly = SCNAction.customAction(duration: total) { node, elapsed in
-            let s = Float(elapsed / total) * Float(laps) * 2 * .pi
-            let ds: Float = 0.02
-            let pPrev = path(s - ds), p0 = path(s), pNext = path(s + ds)
-            node.simdPosition = p0
-
-            let v = (pNext - pPrev) / (2 * ds)          // velocity
-            let a = (pNext - 2 * p0 + pPrev) / (ds * ds) // acceleration
-            let hSpeed = max(1e-4, sqrtf(v.x * v.x + v.z * v.z))
-
-            let yaw = atan2f(-v.z, v.x)                                 // heading about vertical
-            let pitch = max(-maxPitch, min(maxPitch, atan2f(v.y, hSpeed) * pitchGain))
-            let curv = (v.x * a.z - v.z * a.x) / (hSpeed * hSpeed)      // signed horizontal turn
-            let roll = max(-maxBank, min(maxBank, bankGain * curv))     // bank into the turn
-
-            let qYaw = simd_quatf(angle: yaw, axis: up)
-            let qPitch = simd_quatf(angle: pitch, axis: qYaw.act(wingAxis))
-            let fwd = (qPitch * qYaw).act(noseAxis)
-            let qRoll = simd_quatf(angle: roll, axis: fwd)
-            node.simdOrientation = qRoll * qPitch * qYaw
+            let t = Float(elapsed / total)
+            
+            if vehicle == .rocket {
+                let x = Float(-halfW * 1.5) + t * Float(halfW * 3.0)
+                let y = Float(-halfH * 1.1) + Float(halfH * 2.3) * (t * t)
+                let z = Float(-10) + t * 15.0
+                node.simdPosition = SIMD3(x, y, z)
+                
+                let dt: Float = 0.01
+                let nextY = Float(-halfH * 1.1) + Float(halfH * 2.3) * ((t + dt) * (t + dt))
+                let nextX = Float(-halfW * 1.5) + (t + dt) * Float(halfW * 3.0)
+                let nextZ = Float(-10) + (t + dt) * 15.0
+                let v = SIMD3(nextX - x, nextY - y, nextZ - z)
+                let hSpeed = max(1e-4, sqrtf(v.x * v.x + v.z * v.z))
+                
+                let yaw = atan2f(-v.z, v.x)
+                let pitch = atan2f(v.y, hSpeed)
+                
+                let qYaw = simd_quatf(angle: yaw, axis: up)
+                let qPitch = simd_quatf(angle: pitch, axis: qYaw.act(wingAxis))
+                node.simdOrientation = qPitch * qYaw
+                body.simdOrientation = simd_quatf(angle: 0, axis: up)
+                
+            } else if vehicle == .ufo {
+                let s = t * Float(laps) * 2 * .pi
+                let stepCount: Float = 6.0
+                let step = floorf(s * stepCount / (2 * .pi))
+                let phase = (s * stepCount / (2 * .pi)) - step
+                
+                let tStep = phase < 0.65 ? (phase / 0.65) : 1.0
+                let smoothT = tStep * tStep * (3 - 2 * tStep)
+                let sDiscrete1 = (step) * 2 * .pi / stepCount
+                let sDiscrete2 = (step + 1) * 2 * .pi / stepCount
+                let sInterpolated = sDiscrete1 + (sDiscrete2 - sDiscrete1) * smoothT
+                
+                var p = path(sInterpolated)
+                
+                if phase >= 0.65 {
+                    let hoverPhase = (phase - 0.65) / 0.35
+                    p.y += sinf(hoverPhase * .pi * 2) * 0.15
+                }
+                node.simdPosition = p
+                
+                let ds: Float = 0.02
+                let pPrev = path(sInterpolated - ds), pNext = path(sInterpolated + ds)
+                let v = pNext - pPrev
+                let baseYaw = atan2f(-v.z, v.x)
+                
+                // Keep the flight rig oriented towards heading so the banner trails stably
+                node.simdOrientation = simd_quatf(angle: baseYaw, axis: up)
+                
+                // Spin only the UFO body disc
+                let spin = Float(elapsed) * 4.5
+                body.simdOrientation = simd_quatf(angle: spin, axis: up)
+                
+            } else {
+                let s = t * Float(laps) * 2 * .pi
+                let ds: Float = 0.02
+                
+                var pPrev = path(s - ds), p0 = path(s), pNext = path(s + ds)
+                
+                if vehicle == .paperAirplane {
+                    let windFreq = s * 7.5
+                    let drift = SIMD3<Float>(
+                        sinf(windFreq) * 0.08,
+                        cosf(windFreq * 0.8) * 0.07,
+                        sinf(windFreq * 1.2) * 0.06
+                    )
+                    p0 += drift
+                    pPrev += drift
+                    pNext += drift
+                }
+                
+                node.simdPosition = p0
+                
+                let v = (pNext - pPrev) / (2 * ds)
+                let a = (pNext - 2 * p0 + pPrev) / (ds * ds)
+                let hSpeed = max(1e-4, sqrtf(v.x * v.x + v.z * v.z))
+                
+                let yaw = atan2f(-v.z, v.x)
+                var pitch = max(-0.5, min(0.5, atan2f(v.y, hSpeed) * 1.1))
+                let curv = (v.x * a.z - v.z * a.x) / (hSpeed * hSpeed)
+                var roll = max(-0.65, min(0.65, 1.6 * curv))
+                
+                if vehicle == .paperAirplane {
+                    pitch += sinf(s * 15.0) * 0.05
+                    roll += cosf(s * 12.0) * 0.07
+                }
+                
+                let qYaw = simd_quatf(angle: yaw, axis: up)
+                let qPitch = simd_quatf(angle: pitch, axis: qYaw.act(wingAxis))
+                let fwd = (qPitch * qYaw).act(noseAxis)
+                let qRoll = simd_quatf(angle: roll, axis: fwd)
+                node.simdOrientation = qRoll * qPitch * qYaw
+                body.simdOrientation = simd_quatf(angle: 0, axis: up)
+            }
         }
 
-        flight.simdPosition = path(0)
+        if vehicle == .rocket {
+            let startX = Float(-halfW * 1.5)
+            let startY = Float(-halfH * 1.1)
+            let startZ = Float(-10)
+            flight.simdPosition = SIMD3(startX, startY, startZ)
+        } else {
+            flight.simdPosition = path(0)
+        }
+        
         flight.runAction(fly) {
-            // SceneKit calls this off the main thread.
             Task { @MainActor in completion() }
         }
     }
