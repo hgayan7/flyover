@@ -1,6 +1,6 @@
-# BreakPlane ✈️
+# Flyover ✈️
 
-**BreakPlane** is a lightweight, privacy-focused macOS menu-bar utility designed to gently remind you to take breaks. When it's break time, a beautifully animated, procedurally generated 3D propeller plane flies across your screen towing a customizable banner text to nudge you to stand up, stretch, or rest your eyes.
+**Flyover** is a lightweight, privacy-focused macOS menu-bar utility designed to gently remind you to take breaks. When it's break time, a beautifully animated, procedurally generated 3D propeller plane flies across your screen towing a customizable banner text to nudge you to stand up, stretch, or rest your eyes.
 
 ---
 
@@ -41,14 +41,14 @@ chmod +x build-app.sh
 ./build-app.sh
 ```
 
-This generates `BreakPlane.app` in the root of the project.
+This generates `Flyover.app` in the root of the project.
 
 ### 2. Run the App
 Launch the app directly from your terminal:
 ```bash
-open BreakPlane.app
+open Flyover.app
 ```
-Alternatively, you can drag `BreakPlane.app` into your `/Applications` folder.
+Alternatively, you can drag `Flyover.app` into your `/Applications` folder.
 
 ### 3. Dev Build
 To build only the executable package for debugging:
@@ -61,9 +61,9 @@ swift build
 ## Development & Test Flight
 To see the plane fly immediately upon launching:
 ```bash
-BREAKPLANE_TESTFLY=1 open BreakPlane.app
+FLYOVER_TESTFLY=1 open Flyover.app
 ```
-Or simply click the **"Fly now"** button from the BreakPlane menu bar icon.
+Or simply click the **"Fly now"** button from the Flyover menu bar icon.
 
 ## License
 

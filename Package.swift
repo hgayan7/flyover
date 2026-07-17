@@ -2,12 +2,12 @@
 import PackageDescription
 
 let package = Package(
-    name: "BreakPlane",
+    name: "Flyover",
     platforms: [.macOS(.v14)],
     targets: [
         .executableTarget(
-            name: "BreakPlane",
-            path: "Sources/BreakPlane",
+            name: "Flyover",
+            path: "Sources/Flyover",
             swiftSettings: [.swiftLanguageMode(.v5)]
         )
     ]

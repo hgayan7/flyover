@@ -17,7 +17,7 @@ final class SettingsStore: ObservableObject {
     @Published var fixedIntervalEnabled: Bool { didSet { save() } }
     @Published var fixedIntervalSeconds: Int { didSet { save() } }
 
-    private let key = "BreakPlane.settings.v1"
+    private let key = "Flyover.settings.v1"
 
     private struct Snapshot: Codable {
         var remindersEnabled: Bool
@@ -73,7 +73,7 @@ final class StatsStore: ObservableObject {
 
     private var dayKey: String = ""
     private var lastSave = Date.distantPast
-    private let key = "BreakPlane.stats.v1"
+    private let key = "Flyover.stats.v1"
 
     private struct Snapshot: Codable {
         var dayKey: String

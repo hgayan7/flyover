@@ -28,7 +28,7 @@ struct PopoverView: View {
             Image(systemName: "airplane")
                 .font(.title2)
                 .foregroundStyle(.tint)
-            Text("BreakPlane")
+            Text("Flyover")
                 .font(.headline)
             Spacer()
             Toggle("", isOn: $settings.remindersEnabled)

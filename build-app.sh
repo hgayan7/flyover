@@ -1,29 +1,29 @@
 #!/bin/bash
-# Builds BreakPlane.app — a double-clickable, menu-bar-only macOS app.
+# Builds Flyover.app — a double-clickable, menu-bar-only macOS app.
 set -euo pipefail
 cd "$(dirname "$0")"
 
 echo "==> Building release binary..."
 swift build -c release
 
-APP="BreakPlane.app"
-BIN="$(swift build -c release --show-bin-path)/BreakPlane"
+APP="Flyover.app"
+BIN="$(swift build -c release --show-bin-path)/Flyover"
 
 echo "==> Assembling $APP ..."
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS"
 mkdir -p "$APP/Contents/Resources"
-cp "$BIN" "$APP/Contents/MacOS/BreakPlane"
+cp "$BIN" "$APP/Contents/MacOS/Flyover"
 
 cat > "$APP/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>CFBundleName</key>            <string>BreakPlane</string>
-    <key>CFBundleDisplayName</key>     <string>BreakPlane</string>
-    <key>CFBundleIdentifier</key>      <string>com.local.breakplane</string>
-    <key>CFBundleExecutable</key>      <string>BreakPlane</string>
+    <key>CFBundleName</key>            <string>Flyover</string>
+    <key>CFBundleDisplayName</key>     <string>Flyover</string>
+    <key>CFBundleIdentifier</key>      <string>com.local.flyover</string>
+    <key>CFBundleExecutable</key>      <string>Flyover</string>
     <key>CFBundleVersion</key>         <string>1.0</string>
     <key>CFBundleShortVersionString</key> <string>1.0</string>
     <key>CFBundlePackageType</key>     <string>APPL</string>

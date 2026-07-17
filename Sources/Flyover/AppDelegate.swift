@@ -30,7 +30,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         setupPopover()
 
         // Show a plane on launch so you can see it works right away.
-        if ProcessInfo.processInfo.environment["BREAKPLANE_TESTFLY"] != nil {
+        if ProcessInfo.processInfo.environment["FLYOVER_TESTFLY"] != nil {
             presenter.fly(message: "Time to take a break! ✈️")
         }
     }
@@ -41,7 +41,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = statusItem.button {
             button.image = NSImage(systemSymbolName: "airplane",
-                                   accessibilityDescription: "BreakPlane")
+                                   accessibilityDescription: "Flyover")
             button.action = #selector(togglePopover(_:))
             button.target = self
         }
